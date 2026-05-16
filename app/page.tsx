@@ -6,8 +6,6 @@ import {
   Sparkles,
   ArrowRight,
   Check,
-  Phone,
-  MessageCircle,
   ChevronDown,
   Zap,
   Shield,
@@ -15,6 +13,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { calculateChaldeanNumber, getNumerologyMeaning } from "@/lib/utils";
+import LeadForm from "@/components/LeadForm";
 
 const PRICE = 999;
 
@@ -754,29 +753,8 @@ export default function Home() {
               ))}
             </ul>
 
-            {/* CTA Buttons */}
-            <div className="flex flex-col gap-3">
-              <a
-                href="https://wa.me/919999999999?text=Hello%20Rekha%20ji%2C%20I%20would%20like%20to%20order%20my%20Chaldean%20Numerology%20report.%20Price%20%E2%82%B9999%20confirmed."
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-primary w-full py-4 rounded-xl text-base font-bold flex items-center justify-center gap-3"
-              >
-                <MessageCircle size={20} />
-                <span>Order via WhatsApp</span>
-              </a>
-              <a
-                href="tel:+919999999999"
-                className="btn-outline w-full py-3.5 rounded-xl text-sm flex items-center justify-center gap-2"
-              >
-                <Phone size={16} />
-                <span>Call to Order</span>
-              </a>
-            </div>
-
-            <p className="text-center text-xs mt-5" style={{ color: "#4b5563" }}>
-              Secure Payment · Satisfaction Guaranteed
-            </p>
+            {/* Lead capture form — saves to Supabase then opens WhatsApp */}
+            <LeadForm />
           </div>
         </div>
       </section>
