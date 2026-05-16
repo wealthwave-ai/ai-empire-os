@@ -6,7 +6,13 @@
       "PowerShell(gh *)",
       "PowerShell(winget *)",
       "PowerShell(npm install *)",
-      "PowerShell(Get-ChildItem *)"
+      "PowerShell(Get-ChildItem *)",
+      "Skill(claude-api)",
+      "Bash(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\DELL\\\\Desktop\\\\wealthwave\\\\lib\\\\agents\")",
+      "Bash(Out-Null)",
+      "Bash(New-Item -ItemType Directory -Force \"C:\\\\Users\\\\DELL\\\\Desktop\\\\wealthwave\\\\app\\\\api\\\\agents\")",
+      "Bash(Write-Output \"Dirs ready\")",
+      "PowerShell(New-Item *)"
     ]
   }
 }
