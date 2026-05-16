@@ -1,0 +1,174 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-inter: 'Inter', system-ui, sans-serif;
+  --font-cinzel: 'Cinzel', serif;
+  --bg: #07070a;
+  --accent: #3df05a;
+  --accent-dim: rgba(61, 240, 90, 0.15);
+  --card-bg: #0d0d11;
+  --border: rgba(61, 240, 90, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  background-color: #07070a;
+  color: #f0f0f0;
+  font-family: var(--font-inter);
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #07070a;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(61, 240, 90, 0.3);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(61, 240, 90, 0.5);
+}
+
+/* Selection */
+::selection {
+  background: rgba(61, 240, 90, 0.25);
+  color: #fff;
+}
+
+/* Utility classes */
+.text-gradient-green {
+  background: linear-gradient(135deg, #3df05a 0%, #7affa8 50%, #3df05a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-gold {
+  background: linear-gradient(135deg, #f5c842 0%, #fde68a 50%, #f5c842 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.border-green-glow {
+  border: 1px solid rgba(61, 240, 90, 0.2);
+  box-shadow: 0 0 20px rgba(61, 240, 90, 0.08), inset 0 0 20px rgba(61, 240, 90, 0.03);
+}
+
+.card-glass {
+  background: rgba(13, 13, 17, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(61, 240, 90, 0.1);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #3df05a, #22c93b);
+  color: #07070a;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 24px rgba(61, 240, 90, 0.4);
+}
+
+.btn-primary:hover {
+  box-shadow: 0 0 40px rgba(61, 240, 90, 0.6);
+  transform: translateY(-2px);
+}
+
+.btn-outline {
+  background: transparent;
+  color: #3df05a;
+  border: 1px solid rgba(61, 240, 90, 0.4);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  transition: all 0.3s ease;
+}
+
+.btn-outline:hover {
+  background: rgba(61, 240, 90, 0.08);
+  border-color: #3df05a;
+  box-shadow: 0 0 20px rgba(61, 240, 90, 0.2);
+}
+
+/* Animated grid background */
+.grid-bg {
+  background-image: linear-gradient(rgba(61, 240, 90, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(61, 240, 90, 0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+/* Number glow effect */
+.number-glow {
+  text-shadow: 0 0 30px rgba(61, 240, 90, 0.8), 0 0 60px rgba(61, 240, 90, 0.4);
+}
+
+/* Shimmer animation */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, transparent, rgba(61, 240, 90, 0.1), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2.5s linear infinite;
+}
+
+/* Float animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Glow pulse */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(61, 240, 90, 0.2); }
+  50% { box-shadow: 0 0 40px rgba(61, 240, 90, 0.5); }
+}
+
+.glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+/* Fade in up */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.8s ease forwards;
+}
+
+.fade-in-up-delay-1 { animation-delay: 0.1s; opacity: 0; }
+.fade-in-up-delay-2 { animation-delay: 0.2s; opacity: 0; }
+.fade-in-up-delay-3 { animation-delay: 0.3s; opacity: 0; }
+.fade-in-up-delay-4 { animation-delay: 0.4s; opacity: 0; }
+.fade-in-up-delay-5 { animation-delay: 0.5s; opacity: 0; }
