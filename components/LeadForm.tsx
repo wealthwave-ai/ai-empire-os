@@ -1,96 +1,110 @@
 "use client";
 
-import { useState } from "react";
-import { MessageCircle, Phone, Loader2, CheckCircle2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2, CreditCard, Phone } from "lucide-react";
 
-const WHATSAPP_NUMBER = "919999999999";
+declare global {
+  interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    Razorpay: new (options: Record<string, any>) => { open(): void };
+  }
+}
 
-function buildWhatsAppUrl(name: string, phone: string) {
-  const greeting = name ? `Hello Rekha ji, I am ${name}.` : "Hello Rekha ji,";
-  const msg = `${greeting} I would like to order my personalised Chaldean Numerology report. Price ₹999 confirmed. My mobile number is ${phone}.`;
-  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (document.getElementById("razorpay-script")) { resolve(true); return; }
+    const script = document.createElement("script");
+    script.id = "razorpay-script";
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
 }
 
 export default function LeadForm() {
-  const [name, setName]   = useState("");
+  const router = useRouter();
+  const [name,  setName]  = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError]   = useState("");
+  const [scriptReady, setScriptReady] = useState(false);
+
+  useEffect(() => {
+    loadRazorpayScript().then(setScriptReady);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (!phone.trim()) {
-      setError("Please enter your WhatsApp number.");
-      return;
-    }
+    if (!name.trim()) { setError("Please enter your full name."); return; }
+    if (!phone.trim()) { setError("Please enter your WhatsApp number."); return; }
     if (!/^\+?[0-9]{7,15}$/.test(phone.replace(/\s/g, ""))) {
-      setError("Please enter a valid phone number.");
-      return;
+      setError("Please enter a valid phone number."); return;
     }
+    if (!scriptReady) { setError("Payment gateway loading. Please try again in a moment."); return; }
 
     setLoading(true);
     try {
-      const res = await fetch("/api/leads", {
+      // 1. Create Razorpay order (also saves lead to Supabase)
+      const orderRes = await fetch("/api/razorpay", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          phone: phone.trim(),
-          email: email.trim(),
-          mobile_number: phone.trim(),
-          source: "landing_page",
-        }),
+        body: JSON.stringify({ name: name.trim(), phone: phone.trim(), email: email.trim() }),
       });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error ?? "Something went wrong");
+      if (!orderRes.ok) {
+        const data = await orderRes.json().catch(() => ({}));
+        throw new Error(data.error ?? "Failed to create payment order");
       }
 
-      setSubmitted(true);
+      const orderData = await orderRes.json();
 
-      // Redirect to WhatsApp after a short delay so user sees success state
-      setTimeout(() => {
-        window.open(buildWhatsAppUrl(name, phone), "_blank", "noopener,noreferrer");
-      }, 800);
+      // 2. Open Razorpay checkout
+      const rzp = new window.Razorpay({
+        key: orderData.key_id,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: "WealthWave",
+        description: "Personalised Chaldean Numerology Report",
+        image: "/icon.png",
+        order_id: orderData.razorpay_order_id,
+        prefill: {
+          name: name.trim(),
+          contact: phone.trim(),
+          email: email.trim(),
+        },
+        notes: {
+          lead_id: orderData.lead_id,
+          order_id: orderData.order_id,
+        },
+        theme: { color: "#3df05a" },
+        modal: {
+          ondismiss: () => setLoading(false),
+        },
+        handler: (response: {
+          razorpay_payment_id: string;
+          razorpay_order_id: string;
+          razorpay_signature: string;
+        }) => {
+          // Payment success — redirect to thank-you page
+          router.push(
+            `/thank-you?payment_id=${response.razorpay_payment_id}&order_id=${response.razorpay_order_id}&name=${encodeURIComponent(name.trim())}`
+          );
+        },
+      });
+
+      rzp.open();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
-    } finally {
       setLoading(false);
     }
   };
 
-  if (submitted) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-4 py-6 text-center">
-        <div
-          className="w-16 h-16 rounded-full flex items-center justify-center"
-          style={{ background: "rgba(61,240,90,0.15)", border: "1px solid rgba(61,240,90,0.4)" }}
-        >
-          <CheckCircle2 size={32} style={{ color: "#3df05a" }} />
-        </div>
-        <div>
-          <p className="text-lg font-bold text-white mb-1">You&apos;re all set!</p>
-          <p className="text-sm" style={{ color: "#9ca3af" }}>
-            Opening WhatsApp to connect with Rekha ji…
-          </p>
-        </div>
-        <button
-          onClick={() => window.open(buildWhatsAppUrl(name, phone), "_blank", "noopener,noreferrer")}
-          className="btn-primary w-full py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2"
-        >
-          <MessageCircle size={18} />
-          Open WhatsApp
-        </button>
-      </div>
-    );
-  }
-
-  const inputStyle = {
+  const inputStyle: React.CSSProperties = {
     width: "100%",
     background: "rgba(255,255,255,0.04)",
     border: "1px solid rgba(61,240,90,0.15)",
@@ -107,9 +121,10 @@ export default function LeadForm() {
       <div className="flex flex-col gap-3 mb-4">
         <input
           type="text"
-          placeholder="Your full name"
+          placeholder="Your full name (required)"
           value={name}
           onChange={(e) => setName(e.target.value)}
+          required
           style={inputStyle}
           onFocus={(e) => (e.target.style.borderColor = "rgba(61,240,90,0.5)")}
           onBlur={(e)  => (e.target.style.borderColor = "rgba(61,240,90,0.15)")}
@@ -153,9 +168,9 @@ export default function LeadForm() {
           {loading ? (
             <Loader2 size={20} className="animate-spin" />
           ) : (
-            <MessageCircle size={20} />
+            <CreditCard size={20} />
           )}
-          <span>{loading ? "Saving…" : "Order via WhatsApp"}</span>
+          <span>{loading ? "Processing…" : "Pay ₹999 — Order Now"}</span>
         </button>
         <a
           href="tel:+919999999999"
@@ -166,9 +181,11 @@ export default function LeadForm() {
         </a>
       </div>
 
-      <p className="text-center text-xs mt-4" style={{ color: "#4b5563" }}>
-        Your details are safe and never shared.
-      </p>
+      <div className="flex items-center justify-center gap-3 mt-4">
+        <span className="text-xs" style={{ color: "#4b5563" }}>🔒 Secured by</span>
+        <span className="text-xs font-semibold" style={{ color: "#6b7280" }}>Razorpay</span>
+        <span className="text-xs" style={{ color: "#4b5563" }}>· UPI · Cards · Net Banking</span>
+      </div>
     </form>
   );
 }
