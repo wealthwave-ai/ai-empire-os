@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\DELL\\\\Desktop\\\\wealthwave\" -ErrorAction SilentlyContinue; if \\(-not \\(Test-Path \"C:\\\\Users\\\\DELL\\\\Desktop\\\\wealthwave\"\\)\\) { Write-Host \"Directory does not exist, creating...\" })",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\DELL\\\\Desktop\\\\wealthwave\" -Recurse | Where-Object { -not $_.PSIsContainer } | Select-Object FullName)",
+      "PowerShell(gh *)",
+      "PowerShell(winget *)",
+      "PowerShell(npm install *)",
+      "PowerShell(Get-ChildItem *)"
+    ]
+  }
+}
