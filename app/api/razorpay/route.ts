@@ -1,19 +1,10 @@
 import Razorpay from "razorpay";
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID!,
   key_secret: process.env.RAZORPAY_KEY_SECRET!,
 });
-
-function getSupabase() {
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-    { cookies: { getAll: () => [], setAll: () => {} } }
-  );
-}
 
 export async function POST(req: NextRequest) {
   let body: Record<string, unknown>;
@@ -34,79 +25,95 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
   }
 
-  const supabase = getSupabase();
-
-  // Upsert lead if no lead_id provided
+  // Supabase lead/order storage — optional, skipped if not configured
   let resolvedLeadId = lead_id;
-  if (!resolvedLeadId) {
-    const { data: lead, error: leadError } = await supabase
-      .from("leads")
-      .insert({
-        name: name?.trim() ?? null,
-        phone: phone.trim(),
-        email: email?.trim() ?? null,
-        mobile_number: phone.trim(),
-        source: "landing_page",
-        brand_id: "wealthwave",
-        status: "new",
-      })
-      .select()
-      .single();
+  let resolvedOrderId: string | undefined;
 
-    if (leadError) {
-      console.error("[razorpay] Lead create error:", leadError);
-      return NextResponse.json({ error: "Failed to create lead" }, { status: 500 });
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+
+  if (supabaseUrl && supabaseKey) {
+    try {
+      const { createServerClient } = await import("@supabase/ssr");
+      const supabase = createServerClient(supabaseUrl, supabaseKey, {
+        cookies: { getAll: () => [], setAll: () => {} },
+      });
+
+      if (!resolvedLeadId) {
+        const { data: lead, error: leadError } = await supabase
+          .from("leads")
+          .insert({
+            name: name?.trim() ?? null,
+            phone: phone.trim(),
+            email: email?.trim() ?? null,
+            mobile_number: phone.trim(),
+            source: "landing_page",
+            brand_id: "wealthwave",
+            status: "new",
+          })
+          .select()
+          .single();
+
+        if (leadError) {
+          console.error("[razorpay] Lead insert error:", leadError.message, leadError.details);
+        } else {
+          resolvedLeadId = lead.id;
+        }
+      }
+
+      if (resolvedLeadId) {
+        const { data: order, error: orderError } = await supabase
+          .from("orders")
+          .insert({ lead_id: resolvedLeadId, amount: 999, status: "pending" })
+          .select()
+          .single();
+
+        if (orderError) {
+          console.error("[razorpay] Order insert error:", orderError.message, orderError.details);
+        } else {
+          resolvedOrderId = order.id;
+        }
+      }
+    } catch (err) {
+      console.error("[razorpay] Supabase error:", err);
+      // Non-fatal — continue to Razorpay order creation
     }
-    resolvedLeadId = lead.id;
-  }
-
-  // Create a pending order in Supabase
-  const { data: order, error: orderError } = await supabase
-    .from("orders")
-    .insert({
-      lead_id: resolvedLeadId,
-      amount: 999,
-      status: "pending",
-    })
-    .select()
-    .single();
-
-  if (orderError) {
-    console.error("[razorpay] Order create error:", orderError);
-    return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
+  } else {
+    console.warn("[razorpay] Supabase env vars not configured — skipping lead/order storage");
   }
 
   // Create Razorpay order (amount in paise)
-  let razorpayOrderId: string;
-  let razorpayAmount: number;
-  let razorpayCurrency: string;
   try {
-    // razorpay SDK types are inconsistent — cast through unknown
+    console.log("[razorpay] Creating order — key_id present:", !!process.env.RAZORPAY_KEY_ID, "key_secret present:", !!process.env.RAZORPAY_KEY_SECRET);
+
     const rzpOrder = await (razorpay.orders.create({
       amount: 99900,
       currency: "INR",
-      receipt: order.id,
+      receipt: resolvedOrderId ?? `ph_${Date.now()}`,
       notes: {
-        lead_id: resolvedLeadId ?? "",
-        order_id: order.id as string,
         customer_name: name ?? "",
         customer_phone: phone ?? "",
+        lead_id: resolvedLeadId ?? "",
+        order_id: resolvedOrderId ?? "",
       },
     }) as unknown as Promise<{ id: string; amount: number; currency: string }>);
-    razorpayOrderId = rzpOrder.id;
-    razorpayAmount   = rzpOrder.amount;
-    razorpayCurrency = rzpOrder.currency;
-  } catch (err) {
-    console.error("[razorpay] Order creation error:", err);
-    return NextResponse.json({ error: "Razorpay order creation failed" }, { status: 500 });
-  }
 
-  return NextResponse.json({
-    razorpay_order_id: razorpayOrderId,
-    amount: razorpayAmount,
-    currency: razorpayCurrency,
-    key_id: process.env.RAZORPAY_KEY_ID ?? "",
-    lead_id: resolvedLeadId,
-    order_id: order.id,
-  });
+    console.log("[razorpay] Order created:", rzpOrder.id);
+
+    return NextResponse.json({
+      razorpay_order_id: rzpOrder.id,
+      amount: rzpOrder.amount,
+      currency: rzpOrder.currency,
+      key_id: process.env.RAZORPAY_KEY_ID ?? "",
+      lead_id: resolvedLeadId,
+      order_id: resolvedOrderId,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[razorpay] Razorpay order creation failed:", message, err);
+    return NextResponse.json(
+      { error: `Razorpay order creation failed: ${message}` },
+      { status: 500 }
+    );
+  }
 }
