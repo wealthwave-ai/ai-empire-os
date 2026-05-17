@@ -1,11 +1,6 @@
 import Razorpay from "razorpay";
 import { NextRequest, NextResponse } from "next/server";
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
-});
-
 export async function POST(req: NextRequest) {
   let body: Record<string, unknown>;
   try {
@@ -84,7 +79,15 @@ export async function POST(req: NextRequest) {
 
   // Create Razorpay order (amount in paise)
   try {
-    console.log("[razorpay] Creating order — key_id present:", !!process.env.RAZORPAY_KEY_ID, "key_secret present:", !!process.env.RAZORPAY_KEY_SECRET);
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    console.log("[razorpay] Creating order — key_id present:", !!keyId, "key_secret present:", !!keySecret);
+
+    if (!keyId || !keySecret) {
+      return NextResponse.json({ error: "Razorpay credentials not configured" }, { status: 500 });
+    }
+
+    const razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
 
     const rzpOrder = await (razorpay.orders.create({
       amount: 99900,
@@ -109,8 +112,17 @@ export async function POST(req: NextRequest) {
       order_id: resolvedOrderId,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[razorpay] Razorpay order creation failed:", message, err);
+    // Razorpay SDK throws plain objects, not Error instances
+    let message: string;
+    if (err instanceof Error) {
+      message = err.message;
+    } else if (typeof err === "object" && err !== null) {
+      const rzpErr = err as { error?: { description?: string }; statusCode?: number };
+      message = rzpErr.error?.description ?? JSON.stringify(err);
+    } else {
+      message = String(err);
+    }
+    console.error("[razorpay] Razorpay order creation failed (statusCode:", (err as { statusCode?: number })?.statusCode, "):", JSON.stringify(err, null, 2));
     return NextResponse.json(
       { error: `Razorpay order creation failed: ${message}` },
       { status: 500 }
