@@ -1,4 +1,3 @@
-import Razorpay from "razorpay";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
@@ -18,6 +17,14 @@ export async function POST(req: NextRequest) {
 
   if (!phone?.trim()) {
     return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
+  }
+
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+  if (!keyId || !keySecret) {
+    console.error("[razorpay] Missing credentials — RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET not set");
+    return NextResponse.json({ error: "Razorpay credentials not configured" }, { status: 500 });
   }
 
   // Supabase lead/order storage — optional, skipped if not configured
@@ -50,7 +57,7 @@ export async function POST(req: NextRequest) {
           .single();
 
         if (leadError) {
-          console.error("[razorpay] Lead insert error:", leadError.message, leadError.details);
+          console.error("[razorpay] Lead insert error:", leadError.message);
         } else {
           resolvedLeadId = lead.id;
         }
@@ -64,32 +71,28 @@ export async function POST(req: NextRequest) {
           .single();
 
         if (orderError) {
-          console.error("[razorpay] Order insert error:", orderError.message, orderError.details);
+          console.error("[razorpay] Order insert error:", orderError.message);
         } else {
           resolvedOrderId = order.id;
         }
       }
     } catch (err) {
       console.error("[razorpay] Supabase error:", err);
-      // Non-fatal — continue to Razorpay order creation
     }
-  } else {
-    console.warn("[razorpay] Supabase env vars not configured — skipping lead/order storage");
   }
 
-  // Create Razorpay order (amount in paise)
-  try {
-    const keyId = process.env.RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
-    console.log("[razorpay] Creating order — key_id present:", !!keyId, "key_secret present:", !!keySecret);
+  // Create Razorpay order via direct HTTP — no SDK, pure Basic auth
+  const basicAuth = Buffer.from(`${keyId}:${keySecret}`).toString("base64");
 
-    if (!keyId || !keySecret) {
-      return NextResponse.json({ error: "Razorpay credentials not configured" }, { status: 500 });
-    }
+  console.log("[razorpay] Calling orders API — key_id:", keyId.slice(0, 12) + "...");
 
-    const razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
-
-    const rzpOrder = await (razorpay.orders.create({
+  const rzpRes = await fetch("https://api.razorpay.com/v1/orders", {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${basicAuth}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
       amount: 99900,
       currency: "INR",
       receipt: resolvedOrderId ?? `ph_${Date.now()}`,
@@ -99,33 +102,34 @@ export async function POST(req: NextRequest) {
         lead_id: resolvedLeadId ?? "",
         order_id: resolvedOrderId ?? "",
       },
-    }) as unknown as Promise<{ id: string; amount: number; currency: string }>);
+    }),
+  });
 
-    console.log("[razorpay] Order created:", rzpOrder.id);
+  const rzpData = await rzpRes.json() as {
+    id?: string;
+    amount?: number;
+    currency?: string;
+    error?: { code?: string; description?: string };
+  };
 
-    return NextResponse.json({
-      razorpay_order_id: rzpOrder.id,
-      amount: rzpOrder.amount,
-      currency: rzpOrder.currency,
-      key_id: process.env.RAZORPAY_KEY_ID ?? "",
-      lead_id: resolvedLeadId,
-      order_id: resolvedOrderId,
-    });
-  } catch (err) {
-    // Razorpay SDK throws plain objects, not Error instances
-    let message: string;
-    if (err instanceof Error) {
-      message = err.message;
-    } else if (typeof err === "object" && err !== null) {
-      const rzpErr = err as { error?: { description?: string }; statusCode?: number };
-      message = rzpErr.error?.description ?? JSON.stringify(err);
-    } else {
-      message = String(err);
-    }
-    console.error("[razorpay] Razorpay order creation failed (statusCode:", (err as { statusCode?: number })?.statusCode, "):", JSON.stringify(err, null, 2));
+  if (!rzpRes.ok || rzpData.error) {
+    const description = rzpData.error?.description ?? "Unknown error";
+    const code = rzpData.error?.code ?? rzpRes.status;
+    console.error("[razorpay] API error:", code, description);
     return NextResponse.json(
-      { error: `Razorpay order creation failed: ${message}` },
-      { status: 500 }
+      { error: `Payment order failed: ${description}` },
+      { status: 502 }
     );
   }
+
+  console.log("[razorpay] Order created:", rzpData.id);
+
+  return NextResponse.json({
+    razorpay_order_id: rzpData.id,
+    amount: rzpData.amount,
+    currency: rzpData.currency,
+    key_id: keyId,
+    lead_id: resolvedLeadId,
+    order_id: resolvedOrderId,
+  });
 }
