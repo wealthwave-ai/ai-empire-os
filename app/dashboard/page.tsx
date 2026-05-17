@@ -5,6 +5,7 @@ import Sidebar from "@/components/dashboard/Sidebar";
 import KPICard from "@/components/dashboard/KPICard";
 import DepartmentCard from "@/components/dashboard/DepartmentCard";
 import ActivityFeed from "@/components/dashboard/ActivityFeed";
+import CEOAgentPanel from "@/components/dashboard/CEOAgentPanel";
 
 const DEPARTMENTS = [
   { name: "MARKETING",  icon: "📡", status: "ACTIVE"  as const, metric: "3 scripts",  metricLabel: "GENERATED TODAY",    tasksRun: 47,  model: "claude-sonnet-4-5" },
@@ -338,6 +339,9 @@ export default function DashboardPage() {
           >
             {/* CEO Card */}
             <CEOCard />
+
+            {/* CEO Agent — Numerology Report Generator */}
+            <CEOAgentPanel />
 
             {/* KPI Cards */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
