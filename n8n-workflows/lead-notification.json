@@ -1,0 +1,110 @@
+{
+  "name": "Lead Notification - WhatsApp via WATI",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-notification",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "a1000001-0000-0000-0000-000000000001",
+      "name": "Webhook - New Lead",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "lead-notification-webhook"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://YOUR_WATI_ENDPOINT/api/v1/sendSessionMessage/{{ $json.body.phone.replace(/[^0-9]/g, '') }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_WATI_API_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messageText\": \"Namaste {{ $json.body.name }} ji! Rekha Verma ji ne aapka number dekha. Aapka Chaldean numerology report taiyar karne ke liye ₹999 payment karein: https://ai-empire-os-two.vercel.app\"\n}",
+        "options": {}
+      },
+      "id": "a1000001-0000-0000-0000-000000000002",
+      "name": "Send WhatsApp - WATI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "=WhatsApp sent to {{ $('Webhook - New Lead').item.json.body.name }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1000001-0000-0000-0000-000000000003",
+      "name": "Log Result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [760, 300]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - New Lead": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp - WATI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp - WATI": {
+      "main": [
+        [
+          {
+            "node": "Log Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a1000001-0000-0000-0000-000000000000",
+  "meta": {
+    "instanceId": "wealthwave-lead-notification"
+  },
+  "id": "wealthwave-lead-notification-v1",
+  "tags": [
+    {
+      "name": "wealthwave"
+    },
+    {
+      "name": "whatsapp"
+    },
+    {
+      "name": "leads"
+    }
+  ]
+}

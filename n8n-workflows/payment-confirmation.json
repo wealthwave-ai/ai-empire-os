@@ -1,0 +1,146 @@
+{
+  "name": "Payment Confirmation - WhatsApp via WATI",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "razorpay-webhook",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "a2000001-0000-0000-0000-000000000001",
+      "name": "Webhook - Razorpay",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "razorpay-payment-webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-event-type",
+              "leftValue": "={{ $json.body.event }}",
+              "rightValue": "payment.captured",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a2000001-0000-0000-0000-000000000002",
+      "name": "Is payment.captured?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://YOUR_WATI_ENDPOINT/api/v1/sendSessionMessage/{{ $('Webhook - Razorpay').item.json.body.payload.payment.entity.notes.customer_phone.replace(/[^0-9]/g, '') }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_WATI_API_TOKEN"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"messageText\": \"Shukriya {{ $('Webhook - Razorpay').item.json.body.payload.payment.entity.notes.customer_name }} ji! Aapka payment mil gaya. Aapka personal numerology report 24 ghante mein WhatsApp par aayega. 🙏\"\n}",
+        "options": {}
+      },
+      "id": "a2000001-0000-0000-0000-000000000003",
+      "name": "Send WhatsApp - Confirmation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [760, 220]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "=Skipped - event was: {{ $('Webhook - Razorpay').item.json.body.event }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a2000001-0000-0000-0000-000000000004",
+      "name": "Skip - Not Captured",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [760, 420]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Razorpay": {
+      "main": [
+        [
+          {
+            "node": "Is payment.captured?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is payment.captured?": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp - Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip - Not Captured",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a2000001-0000-0000-0000-000000000000",
+  "meta": {
+    "instanceId": "wealthwave-payment-confirmation"
+  },
+  "id": "wealthwave-payment-confirmation-v1",
+  "tags": [
+    {
+      "name": "wealthwave"
+    },
+    {
+      "name": "whatsapp"
+    },
+    {
+      "name": "payments"
+    }
+  ]
+}
